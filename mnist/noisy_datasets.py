@@ -49,7 +49,8 @@ class MNIST(data.Dataset):
         self.transform = transform
         self.target_transform = target_transform
         self.train = train  # training set or test set
-
+        self.err_rate = kargs.get('err_rate', 45)
+        self.err_method = kargs.get('method', 'pair')
         if download:
             self.download()
 
@@ -64,7 +65,11 @@ class MNIST(data.Dataset):
         self.data, self.targets = torch.load(os.path.join(self.root, self.processed_folder, data_file))
         # self.noisy_targets = generate_noise_data(self.targets, 45, 'pair')
         self.noisy_targets = generate_noise_data(self.targets, 
-                kargs.get('err_rate', 45), kargs.get('method', 'pair'))
+                self.err_rate, self.err_method)
+        print(self.noisy_targets)
+        for i in range(10):
+            print('the number of noisy data {} is {}'.format(i,
+                torch.sum(self.noisy_targets[self.targets==i]!=i)))
 
 
     def __getitem__(self, index):
@@ -193,10 +198,11 @@ def generate_noise_data(label: torch.Tensor, eta: int, method):
         ret[sta < eta] += 1
         ret[ret > label.max()] = label.min()
         return ret
-    if method == 'symmetry':
-        cnt = ((label.max() - label.min()) / (eta/100)).int()
+    elif method == 'symmetric':
+        cnt = ((label.max() - label.min()).float() / (float(eta)/100)).int()
         sta = torch.randint_like(label, 0, cnt)
         ret = torch.empty_like(label)
         ret.data = label.clone()
         ret[sta < label.max()] = sta[sta < label.max()]
         return ret
+    else: assert(0)
